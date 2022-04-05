@@ -4236,34 +4236,62 @@ uint16_t WS2812FX::mode_thunder_storm(void) {
   uint32_t color1 = WHITE;
   uint32_t color2 = BLACK;
   
-  //
+  // calculate location of the lighnting ending
   uint16_t tiplength = 100 + random8(155); //0-255
-      tiplength = (tiplength * (SEGLEN -1)) >> 8;
-      flare->vel = sqrt(-2.0 * gravity * peakHeight);
-      flare->col = 255; //brightness
-  //
+  tiplength = (tiplength * (SEGLEN -1)) >> 8;
+  
+  //flare->vel = sqrt(-2.0 * gravity * peakHeight);
+  //flare->col = 255; //brightness
 
-  bool theatre = false;
-  uint8_t width = (theatre ? 3 : 1) + (SEGMENT.intensity >> 4);  // window
   uint32_t cycleTime = 50 + (255 - SEGMENT.speed);
   uint32_t it = now / cycleTime;
+
+  
   bool usePalette = color1 == SEGCOLOR(0);
   
-  for(uint16_t i = 0; i < SEGLEN; i++) {
-    uint32_t col = color2;
-    if (usePalette) color1 = color_from_palette(i, true, PALETTE_SOLID_WRAP, 0);
-    if (theatre) {
-      if ((i % width) == SEGENV.aux0) col = color1;
-    } else {
-      int8_t pos = (i % (width<<1));
-      if ((pos < SEGENV.aux0-width) || ((pos >= SEGENV.aux0) && (pos < SEGENV.aux0+width))) col = color1;
-    }
-    setPixelColor(i,col);
+  
+  if(SEGENV.step < 1) {
+    SEGENV.aux0 = 0;
+    SEGENV.aux1 = tiplength;
+    SEGENV.step++;
   }
+  
+  if (SEGENV.step < 2) {
+    // draw initial ligtning
+    for(uint16_t i = 0; i < SEGLEN; i++) {
+      uint32_t col = color2;
 
-  if (it != SEGENV.step) {
-    SEGENV.aux0 = (SEGENV.aux0 +1) % (theatre ? width : (width<<1));
-    SEGENV.step = it;
+      if (i < SEGENV.aux0) col = color1;
+      setPixelColor(i,col);
+    }
+    
+    // make ligthning longer
+    SEGENV.aux0++;
+
+
+    if ( SEGENV.aux0 > SEGENV.aux1) {
+      SEGENV.aux0 = 0;
+      SEGENV.aux1 = random16(15,30);
+      SEGENV.step++;
+    }
   }
+  else if (SEGENV.step < 3) {
+    // black background
+    fill(BLACK);
+    
+    SEGENV.aux0++;
+    if ( SEGENV.aux0 > SEGENV.aux1) {
+      SEGENV.step++;
+    }
+  }
+  else if (SEGENV.step < 4) {
+    fill(RED);
+    SEGENV.step = 8 + random(10);
+  }
+  else {
+    SEGENV.step--;
+    if(SEGENV.step < 4) SEGENV.step = 0;
+  }
+  
   return FRAMETIME;
 }
