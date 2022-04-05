@@ -4227,3 +4227,43 @@ uint16_t WS2812FX::mode_aurora(void) {
   
   return FRAMETIME;
 }
+
+/*
+ * Description comming....
+ */
+uint16_t WS2812FX::mode_thunder_storm(void) {
+  
+  uint32_t color1 = WHITE;
+  uint32_t color2 = BLACK;
+  
+  //
+  uint16_t tiplength = 100 + random8(155); //0-255
+      tiplength = (tiplength * (SEGLEN -1)) >> 8;
+      flare->vel = sqrt(-2.0 * gravity * peakHeight);
+      flare->col = 255; //brightness
+  //
+
+  bool theatre = false;
+  uint8_t width = (theatre ? 3 : 1) + (SEGMENT.intensity >> 4);  // window
+  uint32_t cycleTime = 50 + (255 - SEGMENT.speed);
+  uint32_t it = now / cycleTime;
+  bool usePalette = color1 == SEGCOLOR(0);
+  
+  for(uint16_t i = 0; i < SEGLEN; i++) {
+    uint32_t col = color2;
+    if (usePalette) color1 = color_from_palette(i, true, PALETTE_SOLID_WRAP, 0);
+    if (theatre) {
+      if ((i % width) == SEGENV.aux0) col = color1;
+    } else {
+      int8_t pos = (i % (width<<1));
+      if ((pos < SEGENV.aux0-width) || ((pos >= SEGENV.aux0) && (pos < SEGENV.aux0+width))) col = color1;
+    }
+    setPixelColor(i,col);
+  }
+
+  if (it != SEGENV.step) {
+    SEGENV.aux0 = (SEGENV.aux0 +1) % (theatre ? width : (width<<1));
+    SEGENV.step = it;
+  }
+  return FRAMETIME;
+}

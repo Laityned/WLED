@@ -610,7 +610,7 @@ class WS2812FX {
       _mode[FX_MODE_BLENDS]                  = &WS2812FX::mode_blends;
       _mode[FX_MODE_TV_SIMULATOR]            = &WS2812FX::mode_tv_simulator;
       _mode[FX_MODE_DYNAMIC_SMOOTH]          = &WS2812FX::mode_dynamic_smooth;
-      _mode[FX_MODE_THUNDER_STORM]         = &WS2812FX::mode_thunder_storm;
+      _mode[FX_MODE_THUNDER_STORM]           = &WS2812FX::mode_thunder_storm;
 
       _brightness = DEFAULT_BRIGHTNESS;
       currentPalette = CRGBPalette16(CRGB::Black);
