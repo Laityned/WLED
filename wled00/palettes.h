@@ -13,7 +13,7 @@
 #ifndef PalettesWLED_h
 #define PalettesWLED_h
 
-#define GRADIENT_PALETTE_COUNT 58
+#define GRADIENT_PALETTE_COUNT 59
 
 const byte ib_jul01_gp[] PROGMEM = {
     0, 194,  1,  1,
@@ -846,6 +846,17 @@ const byte candy2_gp[] PROGMEM = {
   211,  39, 33, 34,
   255,   1,  1,  1};
 
+// our own perry palette
+const byte agent_p_gp[] PROGMEM = {
+    0, 249, 128,  3,
+    30, 249, 128,  3,
+   60,   1, 138,130,
+   73,  35,  15,  1,
+   87,   1, 138,130,
+  178,   1, 138,130,
+  204, 237, 104, 1,
+  255, 237,114,  1};
+
 // Single array of defined cpt-city color palettes.
 // This will let us programmatically choose one based on
 // a number, rather than having to activate each explicitly
@@ -908,7 +919,8 @@ const byte* const gGradientPalettes[] PROGMEM = {
   blink_red_gp,                 //67-54 Blink Red
   red_shift_gp,                 //68-55 Red Shift
   red_tide_gp,                  //69-56 Red Tide
-  candy2_gp                     //70-57 Candy2
+  candy2_gp,                    //70-57 Candy2
+  agent_p_gp                    //71-58 Agent P
 };
 
 #endif
