@@ -4232,66 +4232,137 @@ uint16_t WS2812FX::mode_aurora(void) {
  * Description comming....
  */
 uint16_t WS2812FX::mode_thunder_storm(void) {
-  
-  uint32_t color1 = WHITE;
-  uint32_t color2 = BLACK;
-  
-  // calculate location of the lighnting ending
-  uint16_t tiplength = 100 + random8(155); //0-255
-  tiplength = (tiplength * (SEGLEN -1)) >> 8;
-  
-  //flare->vel = sqrt(-2.0 * gravity * peakHeight);
-  //flare->col = 255; //brightness
+  uint16_t maxData = FAIR_DATA_PER_SEG; //ESP8266: 256 ESP32: 640
+  uint8_t segs = getActiveSegmentsNum();
+  if (segs <= (MAX_NUM_SEGMENTS /2)) maxData *= 2; //ESP8266: 512 if <= 8 segs ESP32: 1280 if <= 16 segs
+  if (segs <= (MAX_NUM_SEGMENTS /4)) maxData *= 2; //ESP8266: 1024 if <= 4 segs ESP32: 2560 if <= 8 segs
+  int maxSparks = maxData / sizeof(spark); //ESP8266: max. 21/42/85 sparks/seg, ESP32: max. 53/106/213 sparks/seg
 
-  uint32_t cycleTime = 50 + (255 - SEGMENT.speed);
-  uint32_t it = now / cycleTime;
+  uint16_t numSparks = min(2 + (SEGLEN >> 1), maxSparks);
+  uint16_t dataSize = sizeof(spark) * numSparks;
+  if (!SEGENV.allocateData(dataSize)) return mode_static(); //allocation failed
 
+  uint32_t color1 = GREEN;
+  uint32_t color2 = RED;
   
-  bool usePalette = color1 == SEGCOLOR(0);
+  fill(BLACK);
   
-  
-  if(SEGENV.step < 1) {
-    SEGENV.aux0 = 0;
-    SEGENV.aux1 = tiplength;
-    SEGENV.step++;
-  }
-  
-  if (SEGENV.step < 2) {
-    // draw initial ligtning
-    for(uint16_t i = 0; i < SEGLEN; i++) {
-      uint32_t col = color2;
+  bool actuallyReverse = SEGMENT.getOption(SEG_OPTION_REVERSED);
+  //have bolt start in either direction based on intensity
+  SEGMENT.setOption(SEG_OPTION_REVERSED, SEGENV.step);
 
-      if (i < SEGENV.aux0) col = color1;
-      setPixelColor(i,col);
+  // calculate location of the bolt ending, bolt speed and duration of the running of the bolt
+  Spark* bolt = reinterpret_cast<Spark*>(SEGENV.data);
+  float boltspeed = 0.0004 + (SEGMENT.speed/8000.0); // m/s/s
+  boltspeed *= SEGLEN;
+  bolt->vel = boltspeed;
+  
+  
+  if (SEGENV.aux0 < 2) { //Bolt
+    if (SEGENV.aux0 == 0) { //init bolt
+      uint16_t boltlength = 100 + random8(155); //0-255
+      boltlength = (boltlength * (SEGLEN -1)) >> 8;
+      SEGENV.aux1 = boltlength;
+      bolt->pos = 0;
+      bolt->col = 255; //brightness
+
+      SEGENV.aux0 = 1; 
     }
     
-    // make ligthning longer
-    SEGENV.aux0++;
+    // start 
+    if (bolt->pos < SEGENV.aux1) {
+      // bolt
+      setPixelColor(int(bolt->pos),(bolt->col * color_from_palette(bolt->pos, true, PALETTE_SOLID_WRAP, 0)) >> 8); //color_from_palette(i, true, PALETTE_SOLID_WRAP, 0), lum)
 
-
-    if ( SEGENV.aux0 > SEGENV.aux1) {
-      SEGENV.aux0 = 0;
-      SEGENV.aux1 = random16(15,30);
-      SEGENV.step++;
+      for (int i = bolt->pos -1; i > 0; i--)
+      {
+        setPixelColor(i,bolt->col >> 4,bolt->col >> 4,bolt->col >> 4);
+      }
+        
+      bolt->pos += bolt->vel;
+      bolt->pos = constrain(bolt->pos, 0, SEGLEN-1);
+    } else if (bolt->pos >= SEGENV.aux1) {
+      SEGENV.aux0 = 2;
     }
   }
-  else if (SEGENV.step < 3) {
-    // black background
+
+  else if (SEGENV.aux0 == 2) {
+    for (int i = SEGENV.aux1; i > 0; i--) {
+      setPixelColor(i,bolt->col,bolt->col,bolt->col);
+    }
+    bolt->col -= (1 + (SEGMENT.speed/8.0));
+
+    if (bolt->col < 50) {
+      SEGENV.aux0 = 3;
+    }
+  }
+
+  else if (SEGENV.aux0 == 3) {
+    for (int i = SEGENV.aux1; i > 0; i--) {
+      setPixelColor(i,bolt->col,bolt->col,bolt->col);
+    }
+    bolt->col += (1 + (SEGMENT.speed/8.0));
+
+    if (bolt->col > 220) {
+      SEGENV.aux0 = 4;
+    }
+  }
+
+  else if (SEGENV.aux0 == 4) {
+    for (int i = SEGENV.aux1; i > 0; i--) {
+      setPixelColor(i,bolt->col,bolt->col,bolt->col);
+    }
+    bolt->col -= (1 + (SEGMENT.speed/8.0));
+
+    if (bolt->col < 35) {
+      SEGENV.aux0 = 5;
+    }
+  }
+
+  else if (SEGENV.aux0 == 5) {
     fill(BLACK);
-    
-    SEGENV.aux0++;
-    if ( SEGENV.aux0 > SEGENV.aux1) {
-      SEGENV.step++;
-    }
-  }
-  else if (SEGENV.step < 4) {
-    fill(RED);
-    SEGENV.step = 8 + random(10);
+    SEGENV.aux0 = 10 + random8(30);
   }
   else {
-    SEGENV.step--;
-    if(SEGENV.step < 4) SEGENV.step = 0;
+    SEGENV.aux0--;
+    if (SEGENV.aux0 < 7) {
+      SEGENV.aux0 = 0; //back to begin
+      SEGENV.step = actuallyReverse ^ (SEGMENT.intensity > random8());
+    }
   }
   
   return FRAMETIME;
 }
+
+
+
+/*
+// Blinking part #################################
+uint16_t WS2812FX::blink(uint32_t color1, uint32_t color2, bool strobe, bool do_palette) {
+  uint32_t cycleTime = (255 - SEGMENT.speed)*20;
+  uint32_t onTime = FRAMETIME;
+  if (!strobe) onTime += ((cycleTime * SEGMENT.intensity) >> 8);
+  cycleTime += FRAMETIME*2;
+  uint32_t it = now / cycleTime;
+  uint32_t rem = now % cycleTime;
+  
+  bool on = false;
+  if (it != SEGENV.step //new iteration, force on state for one frame, even if set time is too brief
+      || rem <= onTime) { 
+    on = true;
+  }
+  
+  SEGENV.step = it; //save previous iteration
+
+  uint32_t color = on ? color1 : color2;
+  if (color == color1 && do_palette)
+  {
+    for(uint16_t i = 0; i < SEGLEN; i++) {
+      setPixelColor(i, color_from_palette(i, true, PALETTE_SOLID_WRAP, 0));
+    }
+  } else fill(color);
+
+  return FRAMETIME;
+  */
+
+  
